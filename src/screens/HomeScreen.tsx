@@ -1,41 +1,52 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
 import type { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme';
+import { recentlyPlayed } from '../data/songs';
+import type { Song } from '../data/songs';
+import { usePlayer } from '../state/PlayerContext';
 import Header from '../components/Header';
-import Card from '../components/Card';
 import SongRow from '../components/SongRow';
-import Button from '../components/Button';
 import MiniPlayer from '../components/MiniPlayer';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProp>();
+  const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
 
   return (
     <View style={styles.container}>
       <Header title="Home" />
 
       <View style={styles.content}>
-        <Card>
-          <SongRow title="Night Drive" artist="Aurora Bay" />
-          <SongRow title="Slow Static" artist="Milo Vance" />
-        </Card>
-
-        <Button label="Open Player" onPress={() => navigation.navigate('Player')} />
-      </View>
-
-      <View style={styles.miniPlayerWrapper}>
-        <MiniPlayer
-          title="Night Drive"
-          artist="Aurora Bay"
-          isPlaying={false}
-          onTogglePlay={() => {}}
-          onPress={() => navigation.navigate('Player')}
+        <Text style={styles.sectionTitle}>Recently Played</Text>
+        <FlatList
+          style={styles.list}
+          data={recentlyPlayed}
+          keyExtractor={(item: Song) => item.id}
+          renderItem={({ item }) => (
+            <SongRow
+              title={item.title}
+              artist={item.artist}
+              onPress={() => playSong(item, recentlyPlayed)}
+            />
+          )}
         />
       </View>
+
+      {currentSong && (
+        <View style={styles.miniPlayerWrapper}>
+          <MiniPlayer
+            title={currentSong.title}
+            artist={currentSong.artist}
+            isPlaying={isPlaying}
+            onTogglePlay={togglePlay}
+            onPress={() => navigation.navigate('Player')}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -48,7 +59,15 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: theme.spacing.md,
-    gap: theme.spacing.lg,
+  },
+  sectionTitle: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.sizes.sm,
+    fontWeight: theme.typography.weights.semibold,
+    marginBottom: theme.spacing.sm,
+  },
+  list: {
+    flex: 1,
   },
   miniPlayerWrapper: {
     padding: theme.spacing.md,
