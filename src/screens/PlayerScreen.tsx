@@ -76,6 +76,10 @@ export default function PlayerScreen() {
     );
   }
 
+  const vinylSize = artworkSize * 0.22;
+  const vinylInset = artworkSize * 0.045;
+  const vinylHoleSize = vinylSize * 0.2;
+
   const isLiked = liked.has(currentSong.id);
   const progressPct = Math.min(100, (progressSec / currentSong.durationSec) * 100);
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
@@ -107,13 +111,16 @@ export default function PlayerScreen() {
                 style={[
                   styles.vinyl,
                   {
-                    left: artworkSize - 16 - 78,
-                    top: artworkSize - 16 - 78,
+                    width: vinylSize,
+                    height: vinylSize,
+                    borderRadius: vinylSize / 2,
+                    left: artworkSize - vinylInset - vinylSize,
+                    top: artworkSize - vinylInset - vinylSize,
                     transform: [{ rotate }],
                   },
                 ]}
               >
-                <View style={styles.vinylHole} />
+                <View style={[styles.vinylHole, { width: vinylHoleSize, height: vinylHoleSize, borderRadius: vinylHoleSize / 2 }]} />
               </Animated.View>
             )}
           </HardShadowBox>
@@ -218,9 +225,6 @@ const styles = StyleSheet.create({
   },
   vinyl: {
     position: 'absolute',
-    width: 78,
-    height: 78,
-    borderRadius: 39,
     backgroundColor: theme.colors.ink,
     borderWidth: theme.borderWidth,
     borderColor: theme.colors.ink,
@@ -228,9 +232,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   vinylHole: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
     backgroundColor: theme.colors.paper,
   },
   titleRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginBottom: 22 },
