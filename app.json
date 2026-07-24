@@ -29,6 +29,14 @@
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": false,
+          "savePhotosPermission": false,
+          "granularPermissions": ["audio"]
+        }
       ]
     ]
   }

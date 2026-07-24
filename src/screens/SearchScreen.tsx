@@ -1,23 +1,49 @@
-import { useMemo, useState } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, TextInput, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import { theme } from '../theme';
-import { mockSongs } from '../data/songs';
 import { mockGenres } from '../data/genres';
-import { usePlayer } from '../state/PlayerContext';
+import { searchSongs } from '../services/api/songs';
+import { ApiError } from '../services/api/types';
+import type { RemoteSong } from '../services/api/types';
 import { SearchIcon } from '../components/icons';
 import HardShadowBox from '../components/HardShadowBox';
 import TrackRow from '../components/TrackRow';
+import EmptyState from '../components/EmptyState';
+
+type SearchStatus = 'idle' | 'loading' | 'error' | 'success';
 
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
-  const { playSong } = usePlayer();
+  const [status, setStatus] = useState<SearchStatus>('idle');
+  const [results, setResults] = useState<RemoteSong[]>([]);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [unavailableId, setUnavailableId] = useState<string | null>(null);
 
-  const results = useMemo(() => {
-    const trimmed = query.trim().toLowerCase();
-    if (!trimmed) return [];
-    return mockSongs.filter(
-      (song) => song.title.toLowerCase().includes(trimmed) || song.artist.toLowerCase().includes(trimmed)
-    );
+  // Debounced: waits for a pause in typing before hitting the backend,
+  // instead of firing a request on every keystroke.
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setStatus('idle');
+      setResults([]);
+      return;
+    }
+
+    setStatus('loading');
+    setUnavailableId(null);
+    const timer = setTimeout(() => {
+      searchSongs(trimmed)
+        .then((songs) => {
+          setResults(songs);
+          setStatus('success');
+        })
+        .catch((error) => {
+          setErrorMessage(error instanceof ApiError ? error.message : 'Search failed');
+          setStatus('error');
+        });
+    }, 400);
+
+    return () => clearTimeout(timer);
   }, [query]);
 
   const hasQuery = query.trim().length > 0;
@@ -39,21 +65,7 @@ export default function SearchScreen() {
         </HardShadowBox>
       </View>
 
-      {hasQuery ? (
-        <View style={styles.resultsBlock}>
-          <Text style={styles.resultLabel}>
-            {results.length} {results.length === 1 ? 'result' : 'results'}
-          </Text>
-          {results.map((song) => (
-            <TrackRow
-              key={song.id}
-              title={song.title}
-              subtitle={`Song · ${song.artist}`}
-              onPress={() => playSong(song, results)}
-            />
-          ))}
-        </View>
-      ) : (
+      {!hasQuery && (
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionLabel}>Browse the racks</Text>
@@ -68,6 +80,41 @@ export default function SearchScreen() {
               </HardShadowBox>
             ))}
           </View>
+        </View>
+      )}
+
+      {hasQuery && status === 'loading' && (
+        <View style={styles.stateContainer}>
+          <ActivityIndicator color={theme.colors.ink} size="large" />
+        </View>
+      )}
+
+      {hasQuery && status === 'error' && <EmptyState message={errorMessage} />}
+
+      {hasQuery && status === 'success' && results.length === 0 && (
+        <EmptyState message={`No results for "${query}"`} />
+      )}
+
+      {hasQuery && status === 'success' && results.length > 0 && (
+        <View style={styles.resultsBlock}>
+          <Text style={styles.resultLabel}>
+            {results.length} {results.length === 1 ? 'result' : 'results'}
+          </Text>
+          {results.map((song) => (
+            <View key={song.id}>
+              <TrackRow
+                title={song.title}
+                subtitle={`Song · ${song.artist}`}
+                onPress={() => setUnavailableId((current) => (current === song.id ? null : song.id))}
+              />
+              {unavailableId === song.id && (
+                <Text style={styles.unavailableNote}>
+                  Playback isn't available for real search results yet — there's no legal audio source wired up
+                  for arbitrary tracks. Your mock/sample songs in Home and Library still play normally.
+                </Text>
+              )}
+            </View>
+          ))}
         </View>
       )}
     </ScrollView>
@@ -98,6 +145,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.display.semibold,
     fontSize: theme.typography.sizes.bodyLg,
   },
+  stateContainer: { paddingVertical: theme.spacing.xl, alignItems: 'center' },
   resultsBlock: { gap: 0 },
   resultLabel: {
     fontFamily: theme.fonts.mono.bold,
@@ -107,6 +155,13 @@ const styles = StyleSheet.create({
     color: theme.colors.inkFaint,
     paddingHorizontal: theme.spacing.page,
     marginBottom: 10,
+  },
+  unavailableNote: {
+    fontFamily: theme.fonts.mono.regular,
+    fontSize: theme.typography.sizes.meta,
+    color: theme.colors.inkFaint,
+    paddingHorizontal: theme.spacing.page,
+    paddingBottom: 12,
   },
   section: { gap: 14 },
   sectionHeaderRow: {

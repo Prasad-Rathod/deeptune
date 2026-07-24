@@ -7,20 +7,90 @@ import { theme } from '../theme';
 import { mockSongs, mockPlaylists } from '../data/songs';
 import { mockAlbums, mockArtists } from '../data/library';
 import { usePlayer } from '../state/PlayerContext';
+import { useLocalTracks, resolveLocalTrackUri } from '../services/localAudio';
+import type { LocalTrack } from '../services/localAudio';
 import { PlusIcon, HeartIcon } from '../components/icons';
 import HardShadowBox from '../components/HardShadowBox';
 import TrackRow from '../components/TrackRow';
 import EmptyState from '../components/EmptyState';
 
-type LibraryTab = 'playlists' | 'artists' | 'albums' | 'downloaded';
+type LibraryTab = 'playlists' | 'artists' | 'albums' | 'onDevice';
 type LibraryNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const TABS: { key: LibraryTab; label: string }[] = [
   { key: 'playlists', label: 'PLAYLISTS' },
   { key: 'artists', label: 'ARTISTS' },
   { key: 'albums', label: 'ALBUMS' },
-  { key: 'downloaded', label: 'DOWNLOADED' },
+  { key: 'onDevice', label: 'ON DEVICE' },
 ];
+
+function formatDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function OnDeviceTab() {
+  const { playSong } = usePlayer();
+  const { status, tracks, retry } = useLocalTracks();
+
+  async function playLocalTrack(track: LocalTrack) {
+    const resolved = await Promise.all(
+      tracks.map(async (t) => ({
+        id: t.id,
+        title: t.title,
+        artist: 'On this device',
+        durationSec: t.durationSec,
+        audioUrl: await resolveLocalTrackUri(t.id),
+      }))
+    );
+    const tapped = resolved.find((t) => t.id === track.id);
+    if (tapped) {
+      playSong(tapped, resolved);
+    }
+  }
+
+  if (status === 'loading') {
+    return (
+      <View style={styles.tabStateContainer}>
+        <ActivityIndicator color={theme.colors.ink} size="large" />
+      </View>
+    );
+  }
+
+  if (status === 'unsupported') {
+    return <EmptyState message="On-device music can't be scanned in this web preview — try it on your phone." />;
+  }
+
+  if (status === 'permission-denied') {
+    return (
+      <View style={styles.tabStateContainer}>
+        <EmptyState message="Allow access to your device's audio files to see them here." />
+        <Pressable onPress={retry} style={styles.retryButton}>
+          <Text style={styles.retryLabel}>Grant access</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (status === 'empty') {
+    return <EmptyState message="No audio files found on this device." />;
+  }
+
+  return (
+    <>
+      {tracks.map((track) => (
+        <TrackRow
+          key={track.id}
+          title={track.title}
+          subtitle="On this device"
+          durationLabel={formatDuration(track.durationSec)}
+          onPress={() => playLocalTrack(track)}
+        />
+      ))}
+    </>
+  );
+}
 
 export default function LibraryScreen() {
   const navigation = useNavigation<LibraryNavigationProp>();
@@ -97,7 +167,7 @@ export default function LibraryScreen() {
           {activeTab === 'albums' &&
             mockAlbums.map((album) => <TrackRow key={album.id} title={album.name} subtitle={album.artist} />)}
 
-          {activeTab === 'downloaded' && <EmptyState message="No downloaded songs yet" />}
+          {activeTab === 'onDevice' && <OnDeviceTab />}
         </ScrollView>
       )}
     </View>
@@ -138,6 +208,17 @@ const styles = StyleSheet.create({
   },
   chipLabelActive: { color: theme.colors.paper },
   loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  tabStateContainer: { alignItems: 'center', gap: theme.spacing.md },
+  retryButton: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: theme.colors.ink,
+  },
+  retryLabel: {
+    fontFamily: theme.fonts.mono.bold,
+    fontSize: theme.typography.sizes.meta,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
   listContent: { paddingBottom: 176 },
   likedRow: {
     flexDirection: 'row',
