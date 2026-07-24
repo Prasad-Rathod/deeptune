@@ -4,14 +4,14 @@ import { theme } from './index';
 
 export const navigationTheme: Theme = {
   ...DefaultTheme,
-  dark: true,
+  dark: false,
   colors: {
     ...DefaultTheme.colors,
-    primary: theme.colors.primary,
-    background: theme.colors.background,
-    card: theme.colors.surface,
-    text: theme.colors.textPrimary,
-    border: theme.colors.border,
-    notification: theme.colors.primary,
+    primary: theme.colors.accent,
+    background: theme.colors.paper,
+    card: theme.colors.paper,
+    text: theme.colors.ink,
+    border: theme.colors.ink,
+    notification: theme.colors.accent,
   },
 };

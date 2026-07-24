@@ -1,17 +1,23 @@
 import { colors } from './colors';
-import { typography } from './typography';
+import { fonts, typography } from './typography';
 import { spacing } from './spacing';
 
 export const theme = {
   colors,
+  fonts,
   typography,
   spacing,
   radius: {
-    sm: 6,
-    md: 12,
-    lg: 20,
+    none: 0,
     full: 999,
   },
+  shadow: {
+    sm: 3,
+    md: 4,
+    lg: 6,
+    xl: 10,
+  },
+  borderWidth: 1.5,
 };
 
 export type Theme = typeof theme;

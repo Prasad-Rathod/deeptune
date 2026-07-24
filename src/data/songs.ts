@@ -19,10 +19,11 @@ export const recentlyPlayed: Song[] = [mockSongs[2], mockSongs[0], mockSongs[4]]
 export interface Playlist {
   id: string;
   name: string;
+  desc: string;
   songIds: string[];
 }
 
 export const mockPlaylists: Playlist[] = [
-  { id: 'p1', name: 'Late Night Focus', songIds: ['1', '3', '5'] },
-  { id: 'p2', name: 'Roadtrip', songIds: ['2', '4', '6'] },
+  { id: 'p1', name: 'Late Night Focus', desc: 'Deep, wordless focus', songIds: ['1', '3', '5'] },
+  { id: 'p2', name: 'Roadtrip', desc: 'Windows down, volume up', songIds: ['2', '4', '6'] },
 ];
