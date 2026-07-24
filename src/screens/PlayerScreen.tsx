@@ -1,0 +1,22 @@
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+
+export default function PlayerScreen() {
+  const navigation = useNavigation();
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Full Player (placeholder)</Text>
+      <Pressable onPress={() => navigation.goBack()} style={styles.closeButton}>
+        <Text style={styles.closeText}>Close</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
+  title: { fontSize: 20, fontWeight: '600' },
+  closeButton: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#222', borderRadius: 8 },
+  closeText: { color: 'white', fontWeight: '600' },
+});
