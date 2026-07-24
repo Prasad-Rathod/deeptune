@@ -8,4 +8,5 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   MainTabs: undefined;
   Player: { songId: string } | undefined;
+  PlaylistDetails: { playlistId: string };
 };
