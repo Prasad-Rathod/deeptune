@@ -1,12 +1,16 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Platform } from 'react-native';
+import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync, requestNotificationPermissionsAsync } from 'expo-audio';
 import type { Song } from '../data/songs';
 
 interface PlayerContextValue {
   queue: Song[];
   currentSong: Song | null;
   isPlaying: boolean;
+  isBuffering: boolean;
   progressSec: number;
+  durationSec: number;
   isShuffle: boolean;
   isRepeat: boolean;
   liked: Set<string>;
@@ -14,6 +18,7 @@ interface PlayerContextValue {
   togglePlay: () => void;
   playNext: () => void;
   playPrevious: () => void;
+  seekTo: (seconds: number) => void;
   toggleShuffle: () => void;
   toggleRepeat: () => void;
   toggleLike: (songId: string) => void;
@@ -24,62 +29,97 @@ const PlayerContext = createContext<PlayerContextValue | undefined>(undefined);
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<Song[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progressSec, setProgressSec] = useState(0);
-  const [isShuffle, setIsShuffle] = useState(true);
+  const [isShuffle, setIsShuffle] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
   const [liked, setLiked] = useState<Set<string>>(new Set(['2', '4']));
 
   const currentSong = queue[currentIndex] ?? null;
 
+  // The real native audio engine. It starts with no source loaded; playSong()
+  // and advance() below tell it what to load via player.replace(...).
+  const player = useAudioPlayer(null, { updateInterval: 250 });
+  const status = useAudioPlayerStatus(player);
+
+  // Runs once: configures the audio session so playback continues when the
+  // app is backgrounded, and requests the Android permission needed to show
+  // lock-screen/notification media controls.
   useEffect(() => {
-    if (currentSong) {
-      console.log(`Now playing: ${currentSong.title} by ${currentSong.artist}`);
-      // Phase 7 will replace this log with telling the real audio engine to load and play the track.
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'doNotMix',
+    });
+    if (Platform.OS === 'android') {
+      requestNotificationPermissionsAsync();
     }
-  }, [currentSong]);
+  }, []);
 
-  // Simulates playback progress ticking forward, one second at a time.
-  // Phase 7 will drive progressSec from the real audio engine instead of a timer.
+  // Loads the current track into the real player whenever the *track itself*
+  // changes (keyed on id, not the whole object, so this doesn't refire on
+  // every render — only when the song actually changes).
   useEffect(() => {
-    if (!isPlaying || !currentSong) return;
-    const interval = setInterval(() => setProgressSec((prev) => prev + 1), 1000);
-    return () => clearInterval(interval);
-  }, [isPlaying, currentSong]);
+    if (!currentSong) return;
+    player.replace({ uri: currentSong.audioUrl });
+    player.play();
+    player.setActiveForLockScreen(true, {
+      title: currentSong.title,
+      artist: currentSong.artist,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSong?.id]);
 
-  // Once progress reaches the current track's duration, advance to the next
-  // track and reset progress — kept as its own effect to avoid nesting one
-  // state updater inside another.
+  // The native player itself tells us when a track ends — no more manual
+  // "has progress passed duration" polling like the Phase 3 simulation.
   useEffect(() => {
-    if (!currentSong || progressSec < currentSong.durationSec) return;
-    setCurrentIndex((i) => (queue.length ? (i + 1) % queue.length : i));
-    setProgressSec(0);
-  }, [progressSec, currentSong, queue.length]);
+    if (!status.didJustFinish) return;
+    if (isRepeat) {
+      player.seekTo(0);
+      player.play();
+    } else {
+      advance(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status.didJustFinish]);
 
   function playSong(song: Song, newQueue?: Song[]) {
     const list = newQueue ?? [song];
     const index = list.findIndex((s) => s.id === song.id);
     setQueue(list);
     setCurrentIndex(index === -1 ? 0 : index);
-    setProgressSec(0);
-    setIsPlaying(true);
   }
 
   function togglePlay() {
     if (!currentSong) return;
-    setIsPlaying((prev) => !prev);
+    if (status.playing) {
+      player.pause();
+    } else {
+      player.play();
+    }
+  }
+
+  function advance(direction: 1 | -1) {
+    if (queue.length === 0) return;
+    if (isShuffle && queue.length > 1) {
+      let nextIndex = currentIndex;
+      while (nextIndex === currentIndex) {
+        nextIndex = Math.floor(Math.random() * queue.length);
+      }
+      setCurrentIndex(nextIndex);
+    } else {
+      setCurrentIndex((prev) => (prev + direction + queue.length) % queue.length);
+    }
   }
 
   function playNext() {
-    setCurrentIndex((prev) => (queue.length ? (prev + 1) % queue.length : prev));
-    setProgressSec(0);
-    setIsPlaying(true);
+    advance(1);
   }
 
   function playPrevious() {
-    setCurrentIndex((prev) => (queue.length ? (prev - 1 + queue.length) % queue.length : prev));
-    setProgressSec(0);
-    setIsPlaying(true);
+    advance(-1);
+  }
+
+  function seekTo(seconds: number) {
+    player.seekTo(seconds);
   }
 
   function toggleShuffle() {
@@ -106,8 +146,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     () => ({
       queue,
       currentSong,
-      isPlaying,
-      progressSec,
+      isPlaying: status.playing,
+      isBuffering: status.isBuffering,
+      progressSec: status.currentTime,
+      durationSec: status.duration || currentSong?.durationSec || 0,
       isShuffle,
       isRepeat,
       liked,
@@ -115,11 +157,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       togglePlay,
       playNext,
       playPrevious,
+      seekTo,
       toggleShuffle,
       toggleRepeat,
       toggleLike,
     }),
-    [queue, currentSong, isPlaying, progressSec, isShuffle, isRepeat, liked]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      queue,
+      currentSong,
+      status.playing,
+      status.isBuffering,
+      status.currentTime,
+      status.duration,
+      isShuffle,
+      isRepeat,
+      liked,
+    ]
   );
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;

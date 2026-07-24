@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, Easing, Platform, StyleSheet } from 'react-native';
-import type { LayoutChangeEvent } from 'react-native';
+import { View, Text, Pressable, Animated, Easing, Platform, ActivityIndicator, StyleSheet } from 'react-native';
+import type { LayoutChangeEvent, GestureResponderEvent } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../theme';
 import { usePlayer } from '../state/PlayerContext';
@@ -37,17 +37,32 @@ export default function PlayerScreen() {
   const {
     currentSong,
     isPlaying,
+    isBuffering,
     progressSec,
+    durationSec,
     isShuffle,
     isRepeat,
     liked,
     togglePlay,
     playNext,
     playPrevious,
+    seekTo,
     toggleShuffle,
     toggleRepeat,
     toggleLike,
   } = usePlayer();
+
+  const [progressTrackWidth, setProgressTrackWidth] = useState(0);
+
+  function handleProgressTrackLayout(event: LayoutChangeEvent) {
+    setProgressTrackWidth(event.nativeEvent.layout.width);
+  }
+
+  function handleSeekPress(event: GestureResponderEvent) {
+    if (progressTrackWidth === 0 || durationSec === 0) return;
+    const fraction = Math.min(1, Math.max(0, event.nativeEvent.locationX / progressTrackWidth));
+    seekTo(fraction * durationSec);
+  }
 
   const spin = useRef(new Animated.Value(0)).current;
 
@@ -81,7 +96,7 @@ export default function PlayerScreen() {
   const vinylHoleSize = vinylSize * 0.2;
 
   const isLiked = liked.has(currentSong.id);
-  const progressPct = Math.min(100, (progressSec / currentSong.durationSec) * 100);
+  const progressPct = durationSec > 0 ? Math.min(100, (progressSec / durationSec) * 100) : 0;
   const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   return (
@@ -144,12 +159,17 @@ export default function PlayerScreen() {
       </View>
 
       <View style={styles.progressBlock}>
-        <View style={styles.progressTrack}>
+        <Pressable
+          onLayout={handleProgressTrackLayout}
+          onPress={handleSeekPress}
+          hitSlop={{ top: 12, bottom: 12 }}
+          style={styles.progressTrack}
+        >
           <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
-        </View>
+        </Pressable>
         <View style={styles.progressLabels}>
           <Text style={styles.progressText}>{formatDuration(progressSec)}</Text>
-          <Text style={styles.progressText}>-{formatDuration(Math.max(0, currentSong.durationSec - progressSec))}</Text>
+          <Text style={styles.progressText}>-{formatDuration(Math.max(0, durationSec - progressSec))}</Text>
         </View>
       </View>
 
@@ -161,7 +181,9 @@ export default function PlayerScreen() {
           <PrevIcon size={30} />
         </Pressable>
         <HardShadowBox offset={theme.shadow.lg} radius={999} contentStyle={styles.playButton} onPress={togglePlay}>
-          {isPlaying ? (
+          {isBuffering ? (
+            <ActivityIndicator color={theme.colors.ink} />
+          ) : isPlaying ? (
             <PauseIcon size={30} color={theme.colors.ink} />
           ) : (
             <PlayIcon size={32} color={theme.colors.ink} />

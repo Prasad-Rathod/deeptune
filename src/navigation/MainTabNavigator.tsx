@@ -42,8 +42,8 @@ function TabLabel({ routeName, focused }: { routeName: keyof MainTabParamList; f
 
 export default function MainTabNavigator() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { currentSong, isPlaying, progressSec, togglePlay } = usePlayer();
-  const progressPct = currentSong ? Math.min(100, (progressSec / currentSong.durationSec) * 100) : 0;
+  const { currentSong, isPlaying, progressSec, durationSec, togglePlay } = usePlayer();
+  const progressPct = currentSong && durationSec > 0 ? Math.min(100, (progressSec / durationSec) * 100) : 0;
 
   return (
     <View style={styles.root}>
