@@ -1,5 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { theme } from '../theme';
 
 export default function PlayerScreen() {
   const navigation = useNavigation();
@@ -15,8 +16,8 @@ export default function PlayerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  title: { fontSize: 20, fontWeight: '600' },
-  closeButton: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#222', borderRadius: 8 },
-  closeText: { color: 'white', fontWeight: '600' },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, backgroundColor: theme.colors.background },
+  title: { fontSize: 20, fontWeight: '600', color: theme.colors.textPrimary },
+  closeButton: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: theme.colors.surfaceElevated, borderRadius: 8 },
+  closeText: { color: theme.colors.textPrimary, fontWeight: '600' },
 });
