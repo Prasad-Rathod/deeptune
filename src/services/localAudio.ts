@@ -1,11 +1,32 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { AssetField, MediaType, Query, Asset, requestPermissionsAsync } from 'expo-media-library';
+import type { Song } from '../data/songs';
+import { extractEmbeddedArtworkUri } from './albumArt';
 
 export interface LocalTrack {
   id: string;
   title: string;
   durationSec: number;
+}
+
+// Local (on-device) tracks and mock/demo songs share the same `Song` shape so
+// they can flow through playlists/search/liked interchangeably, but they come
+// from different id spaces (media-library asset ids vs mock song ids) that
+// could otherwise collide. This prefix disambiguates them anywhere a song id
+// is stored (playlist songIds, liked set) or looked up.
+export const LOCAL_SONG_PREFIX = 'local:';
+
+export function toLocalSongId(assetId: string): string {
+  return `${LOCAL_SONG_PREFIX}${assetId}`;
+}
+
+export function fromLocalSongId(songId: string): string {
+  return songId.slice(LOCAL_SONG_PREFIX.length);
+}
+
+export function isLocalSongId(songId: string): boolean {
+  return songId.startsWith(LOCAL_SONG_PREFIX);
 }
 
 export type LocalTracksStatus = 'loading' | 'unsupported' | 'permission-denied' | 'empty' | 'success';
@@ -69,4 +90,17 @@ export function useLocalTracks() {
 
 export function resolveLocalTrackUri(id: string): Promise<string> {
   return new Asset(id).getUri();
+}
+
+export async function resolveLocalTrackAsSong(track: LocalTrack): Promise<Song> {
+  const audioUrl = await resolveLocalTrackUri(track.id);
+  const artworkUrl = (await extractEmbeddedArtworkUri(audioUrl, track.id)) ?? undefined;
+  return {
+    id: toLocalSongId(track.id),
+    title: track.title,
+    artist: 'On this device',
+    durationSec: track.durationSec,
+    audioUrl,
+    artworkUrl,
+  };
 }

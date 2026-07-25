@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,11 +6,13 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme';
 import { mockSongs, recentlyPlayed } from '../data/songs';
+import type { Song } from '../data/songs';
 import { usePlayer } from '../state/PlayerContext';
 import { usePlaylists } from '../state/PlaylistsContext';
 import HardShadowBox from '../components/HardShadowBox';
 import TrackRow from '../components/TrackRow';
 import Artwork from '../components/Artwork';
+import TrackActionsSheet from '../components/TrackActionsSheet';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -27,8 +29,10 @@ export default function HomeScreen() {
   const { playlists } = usePlaylists();
   const greeting = useGreeting();
   const insets = useSafeAreaInsets();
+  const [sheetSong, setSheetSong] = useState<Song | null>(null);
 
   return (
+    <>
     <ScrollView
       style={styles.container}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + theme.spacing.lg }]}
@@ -108,10 +112,13 @@ export default function HomeScreen() {
             artworkUrl={song.artworkUrl}
             isPlayingNow={currentSong?.id === song.id}
             onPress={() => playSong(song, recentlyPlayed)}
+            onMorePress={() => setSheetSong(song)}
           />
         ))}
       </View>
     </ScrollView>
+    <TrackActionsSheet visible={sheetSong !== null} song={sheetSong} onClose={() => setSheetSong(null)} />
+    </>
   );
 }
 

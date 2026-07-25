@@ -1,7 +1,7 @@
 import { Pressable, View, Text, StyleSheet } from 'react-native';
 import { theme } from '../theme';
 import Artwork from './Artwork';
-import { CloseIcon } from './icons';
+import { MoreDotsIcon } from './icons';
 
 interface TrackRowProps {
   title: string;
@@ -12,7 +12,7 @@ interface TrackRowProps {
   isPlayingNow?: boolean;
   artworkUrl?: string;
   onPress?: () => void;
-  onRemove?: () => void;
+  onMorePress?: () => void;
 }
 
 export default function TrackRow({
@@ -24,7 +24,7 @@ export default function TrackRow({
   isPlayingNow,
   artworkUrl,
   onPress,
-  onRemove,
+  onMorePress,
 }: TrackRowProps) {
   return (
     <Pressable onPress={onPress} style={styles.row}>
@@ -49,9 +49,9 @@ export default function TrackRow({
         </Text>
       </View>
       {durationLabel && <Text style={styles.duration}>{durationLabel}</Text>}
-      {onRemove && (
-        <Pressable onPress={onRemove} hitSlop={10} style={styles.removeButton}>
-          <CloseIcon size={15} color={theme.colors.inkFaint} />
+      {onMorePress && (
+        <Pressable onPress={onMorePress} hitSlop={10} style={styles.moreButton}>
+          <MoreDotsIcon size={18} color={theme.colors.inkFaint} />
         </Pressable>
       )}
     </Pressable>
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.meta,
     color: theme.colors.inkFainter,
   },
-  removeButton: {
+  moreButton: {
     width: 28,
     height: 28,
     alignItems: 'center',

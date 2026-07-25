@@ -19,6 +19,7 @@ import {
   CastIcon,
 } from '../components/icons';
 import HardShadowBox from '../components/HardShadowBox';
+import TrackActionsSheet from '../components/TrackActionsSheet';
 
 function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -30,6 +31,7 @@ export default function PlayerScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [artworkSize, setArtworkSize] = useState(0);
+  const [sheetVisible, setSheetVisible] = useState(false);
 
   function handleArtworkWrapperLayout(event: LayoutChangeEvent) {
     const { width, height } = event.nativeEvent.layout;
@@ -82,6 +84,7 @@ export default function PlayerScreen() {
   const progressPct = durationSec > 0 ? Math.min(100, (progressSec / durationSec) * 100) : 0;
 
   return (
+    <>
     <View style={[styles.container, { paddingTop: insets.top + theme.spacing.lg }]}>
       <View style={styles.topRow}>
         <HardShadowBox offset={theme.shadow.sm} contentStyle={styles.topButton} onPress={() => navigation.goBack()}>
@@ -91,7 +94,7 @@ export default function PlayerScreen() {
           <Text style={styles.topLabel}>Now playing</Text>
           <Text style={styles.topArtist}>{currentSong.artist}</Text>
         </View>
-        <HardShadowBox offset={theme.shadow.sm} contentStyle={styles.topButton}>
+        <HardShadowBox offset={theme.shadow.sm} contentStyle={styles.topButton} onPress={() => setSheetVisible(true)}>
           <MoreDotsIcon size={20} />
         </HardShadowBox>
       </View>
@@ -182,6 +185,8 @@ export default function PlayerScreen() {
         <Text style={styles.footerText}>Living Room · AirPlay</Text>
       </View>
     </View>
+    <TrackActionsSheet visible={sheetVisible} song={currentSong} onClose={() => setSheetVisible(false)} />
+    </>
   );
 }
 

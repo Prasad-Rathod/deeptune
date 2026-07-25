@@ -8,6 +8,8 @@ import type { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme';
 import { mockSongs } from '../data/songs';
 import { usePlaylists } from '../state/PlaylistsContext';
+import { useLocalTracksContext } from '../state/LocalTracksContext';
+import { toLocalSongId } from '../services/localAudio';
 import { ChevronDownIcon, CheckIcon, TrashIcon } from '../components/icons';
 import HardShadowBox from '../components/HardShadowBox';
 import Artwork from '../components/Artwork';
@@ -15,17 +17,51 @@ import Artwork from '../components/Artwork';
 type CreatePlaylistRouteProp = RouteProp<RootStackParamList, 'CreatePlaylist'>;
 type CreatePlaylistNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+interface PickableSong {
+  id: string;
+  title: string;
+  subtitle: string;
+  artworkUrl?: string;
+}
+
+type PickerRow = { kind: 'header'; label: string } | { kind: 'song'; song: PickableSong };
+
 export default function CreatePlaylistScreen() {
   const navigation = useNavigation<CreatePlaylistNavigationProp>();
   const route = useRoute<CreatePlaylistRouteProp>();
   const insets = useSafeAreaInsets();
   const { playlists, createPlaylist, deletePlaylist, setPlaylistSongIds } = usePlaylists();
+  const { status: localStatus, tracks: localTracks } = useLocalTracksContext();
 
   const editingPlaylist = route.params ? playlists.find((p) => p.id === route.params!.playlistId) : undefined;
   const isEditing = Boolean(editingPlaylist);
 
   const [name, setName] = useState(editingPlaylist?.name ?? '');
   const [selected, setSelected] = useState<Set<string>>(new Set(editingPlaylist?.songIds ?? []));
+
+  const rows: PickerRow[] = useMemo(() => {
+    const sampleRows: PickerRow[] = [
+      { kind: 'header', label: 'Sample songs' },
+      ...mockSongs.map((song): PickerRow => ({
+        kind: 'song',
+        song: { id: song.id, title: song.title, subtitle: song.artist, artworkUrl: song.artworkUrl },
+      })),
+    ];
+
+    if (localStatus !== 'success' || localTracks.length === 0) {
+      return sampleRows;
+    }
+
+    const deviceRows: PickerRow[] = [
+      { kind: 'header', label: 'On this device' },
+      ...localTracks.map((track): PickerRow => ({
+        kind: 'song',
+        song: { id: toLocalSongId(track.id), title: track.title, subtitle: 'On this device' },
+      })),
+    ];
+
+    return [...sampleRows, ...deviceRows];
+  }, [localStatus, localTracks]);
 
   const canSave = isEditing || name.trim().length > 0;
 
@@ -97,11 +133,15 @@ export default function CreatePlaylistScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <FlatList
-        data={mockSongs}
-        keyExtractor={(song) => song.id}
+        data={rows}
+        keyExtractor={(row, index) => (row.kind === 'header' ? `header-${row.label}` : row.song.id) ?? String(index)}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={listHeader}
-        renderItem={({ item: song }) => {
+        renderItem={({ item: row }) => {
+          if (row.kind === 'header') {
+            return <Text style={styles.groupLabel}>{row.label.toUpperCase()}</Text>;
+          }
+          const { song } = row;
           const isSelected = selected.has(song.id);
           return (
             <Pressable style={styles.songRow} onPress={() => toggleSong(song.id)}>
@@ -111,7 +151,7 @@ export default function CreatePlaylistScreen() {
                   {song.title}
                 </Text>
                 <Text style={styles.songArtist} numberOfLines={1}>
-                  {song.artist}
+                  {song.subtitle}
                 </Text>
               </View>
               <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
@@ -159,6 +199,15 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.sizes.meta,
     letterSpacing: 0.6,
     color: theme.colors.inkFaint,
+  },
+  groupLabel: {
+    fontFamily: theme.fonts.mono.bold,
+    fontSize: theme.typography.sizes.meta,
+    letterSpacing: 0.6,
+    color: theme.colors.inkFaint,
+    paddingHorizontal: theme.spacing.page,
+    paddingTop: 14,
+    paddingBottom: 6,
   },
   songRow: {
     flexDirection: 'row',

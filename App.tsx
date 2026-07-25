@@ -16,6 +16,7 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { navigationTheme } from './src/theme/navigationTheme';
 import { PlayerProvider } from './src/state/PlayerContext';
 import { PlaylistsProvider } from './src/state/PlaylistsContext';
+import { LocalTracksProvider } from './src/state/LocalTracksContext';
 import { theme } from './src/theme';
 
 export default function App() {
@@ -36,14 +37,16 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <PlaylistsProvider>
-          <PlayerProvider>
-            <NavigationContainer theme={navigationTheme}>
-              <RootNavigator />
-              <StatusBar style="dark" />
-            </NavigationContainer>
-          </PlayerProvider>
-        </PlaylistsProvider>
+        <LocalTracksProvider>
+          <PlaylistsProvider>
+            <PlayerProvider>
+              <NavigationContainer theme={navigationTheme}>
+                <RootNavigator />
+                <StatusBar style="dark" />
+              </NavigationContainer>
+            </PlayerProvider>
+          </PlaylistsProvider>
+        </LocalTracksProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

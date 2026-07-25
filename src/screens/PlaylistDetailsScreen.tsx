@@ -1,4 +1,5 @@
-import { View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RouteProp } from '@react-navigation/native';
@@ -9,10 +10,13 @@ import { mockSongs } from '../data/songs';
 import type { Song } from '../data/songs';
 import { usePlayer } from '../state/PlayerContext';
 import { usePlaylists } from '../state/PlaylistsContext';
+import { useLocalTracksContext } from '../state/LocalTracksContext';
+import { isLocalSongId, toLocalSongId, resolveLocalTrackAsSong } from '../services/localAudio';
 import { ChevronLeftIcon, PlayIcon, ShuffleIcon, PlusIcon } from '../components/icons';
 import HardShadowBox from '../components/HardShadowBox';
 import TrackRow from '../components/TrackRow';
 import Artwork from '../components/Artwork';
+import TrackActionsSheet from '../components/TrackActionsSheet';
 
 type PlaylistDetailsRouteProp = RouteProp<RootStackParamList, 'PlaylistDetails'>;
 type PlaylistDetailsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -21,25 +25,62 @@ export default function PlaylistDetailsScreen() {
   const route = useRoute<PlaylistDetailsRouteProp>();
   const navigation = useNavigation<PlaylistDetailsNavigationProp>();
   const { currentSong, liked, playSong } = usePlayer();
-  const { playlists, removeSongFromPlaylist } = usePlaylists();
+  const { playlists } = usePlaylists();
+  const { tracks: localTracks } = useLocalTracksContext();
   const { playlistId } = route.params;
   const insets = useSafeAreaInsets();
 
   const isLiked = playlistId === 'liked';
   const playlist = isLiked ? null : playlists.find((p) => p.id === playlistId);
 
-  if (!isLiked && !playlist) return null;
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [resolving, setResolving] = useState(true);
+  const [sheetSong, setSheetSong] = useState<Song | null>(null);
 
-  const songs: Song[] = isLiked
-    ? mockSongs.filter((s) => liked.has(s.id))
-    : (playlist!.songIds
-        .map((id) => mockSongs.find((s) => s.id === id))
-        .filter((song): song is Song => Boolean(song)));
+  const songIds = isLiked ? Array.from(liked) : (playlist?.songIds ?? []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolveSongs() {
+      setResolving(true);
+      const resolved = await Promise.all(
+        songIds.map(async (id): Promise<Song | null> => {
+          if (isLocalSongId(id)) {
+            const track = localTracks.find((t) => toLocalSongId(t.id) === id);
+            return track ? resolveLocalTrackAsSong(track) : null;
+          }
+          return mockSongs.find((s) => s.id === id) ?? null;
+        })
+      );
+      if (!cancelled) {
+        setSongs(resolved.filter((song): song is Song => Boolean(song)));
+        setResolving(false);
+      }
+    }
+
+    resolveSongs();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [songIds.join('|'), localTracks]);
+
+  if (!isLiked && !playlist) return null;
 
   const name = isLiked ? 'Liked Songs' : playlist!.name;
   const desc = isLiked ? "Songs you've liked" : playlist!.desc;
 
+  if (resolving) {
+    return (
+      <View style={[styles.loadingContainer, { paddingTop: insets.top + theme.spacing.lg }]}>
+        <ActivityIndicator color={theme.colors.ink} size="large" />
+      </View>
+    );
+  }
+
   return (
+    <>
     <FlatList
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -102,15 +143,23 @@ export default function PlaylistDetailsScreen() {
           isActive={currentSong?.id === song.id}
           isPlayingNow={currentSong?.id === song.id}
           onPress={() => playSong(song, songs)}
-          onRemove={!isLiked ? () => removeSongFromPlaylist(playlist!.id, song.id) : undefined}
+          onMorePress={() => setSheetSong(song)}
         />
       )}
     />
+    <TrackActionsSheet
+      visible={sheetSong !== null}
+      song={sheetSong}
+      playlistId={!isLiked ? playlistId : undefined}
+      onClose={() => setSheetSong(null)}
+    />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.paper },
+  loadingContainer: { flex: 1, backgroundColor: theme.colors.paper, alignItems: 'center', justifyContent: 'center' },
   content: { paddingBottom: 176 },
   headerBlock: { gap: 16, paddingHorizontal: theme.spacing.page, marginBottom: 6 },
   backLink: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },

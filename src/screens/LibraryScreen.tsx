@@ -9,13 +9,15 @@ import { mockSongs } from '../data/songs';
 import { mockAlbums, mockArtists } from '../data/library';
 import { usePlayer } from '../state/PlayerContext';
 import { usePlaylists } from '../state/PlaylistsContext';
-import { useLocalTracks, resolveLocalTrackUri } from '../services/localAudio';
+import { resolveLocalTrackUri, resolveLocalTrackAsSong, toLocalSongId } from '../services/localAudio';
 import type { LocalTrack } from '../services/localAudio';
+import { useLocalTracksContext } from '../state/LocalTracksContext';
 import { extractEmbeddedArtworkUri } from '../services/albumArt';
 import { PlusIcon, HeartIcon } from '../components/icons';
 import HardShadowBox from '../components/HardShadowBox';
 import TrackRow from '../components/TrackRow';
 import EmptyState from '../components/EmptyState';
+import TrackActionsSheet from '../components/TrackActionsSheet';
 
 type LibraryTab = 'playlists' | 'artists' | 'albums' | 'onDevice';
 type LibraryNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -33,7 +35,15 @@ function formatDuration(totalSeconds: number) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function OnDeviceTrackRow({ track, onPress }: { track: LocalTrack; onPress: () => void }) {
+function OnDeviceTrackRow({
+  track,
+  onPress,
+  onMorePress,
+}: {
+  track: LocalTrack;
+  onPress: () => void;
+  onMorePress: () => void;
+}) {
   const [artworkUrl, setArtworkUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
@@ -55,30 +65,19 @@ function OnDeviceTrackRow({ track, onPress }: { track: LocalTrack; onPress: () =
       durationLabel={formatDuration(track.durationSec)}
       artworkUrl={artworkUrl}
       onPress={onPress}
+      onMorePress={onMorePress}
     />
   );
 }
 
 function OnDeviceTab() {
   const { playSong } = usePlayer();
-  const { status, tracks, retry } = useLocalTracks();
+  const { status, tracks, retry } = useLocalTracksContext();
+  const [sheetTrack, setSheetTrack] = useState<LocalTrack | null>(null);
 
   async function playLocalTrack(track: LocalTrack) {
-    const resolved = await Promise.all(
-      tracks.map(async (t) => {
-        const audioUrl = await resolveLocalTrackUri(t.id);
-        const artworkUrl = (await extractEmbeddedArtworkUri(audioUrl, t.id)) ?? undefined;
-        return {
-          id: t.id,
-          title: t.title,
-          artist: 'On this device',
-          durationSec: t.durationSec,
-          audioUrl,
-          artworkUrl,
-        };
-      })
-    );
-    const tapped = resolved.find((t) => t.id === track.id);
+    const resolved = await Promise.all(tracks.map(resolveLocalTrackAsSong));
+    const tapped = resolved.find((t) => t.id === toLocalSongId(track.id));
     if (tapped) {
       playSong(tapped, resolved);
     }
@@ -112,13 +111,26 @@ function OnDeviceTab() {
   }
 
   return (
-    <FlatList
-      style={styles.list}
-      contentContainerStyle={styles.listContent}
-      data={tracks}
-      keyExtractor={(track) => track.id}
-      renderItem={({ item: track }) => <OnDeviceTrackRow track={track} onPress={() => playLocalTrack(track)} />}
-    />
+    <>
+      <FlatList
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
+        data={tracks}
+        keyExtractor={(track) => track.id}
+        renderItem={({ item: track }) => (
+          <OnDeviceTrackRow
+            track={track}
+            onPress={() => playLocalTrack(track)}
+            onMorePress={() => setSheetTrack(track)}
+          />
+        )}
+      />
+      <TrackActionsSheet
+        visible={sheetTrack !== null}
+        song={sheetTrack ? { id: toLocalSongId(sheetTrack.id), title: sheetTrack.title } : null}
+        onClose={() => setSheetTrack(null)}
+      />
+    </>
   );
 }
 

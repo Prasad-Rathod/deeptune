@@ -1,8 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync, requestNotificationPermissionsAsync } from 'expo-audio';
 import type { Song } from '../data/songs';
+
+const LIKED_STORAGE_KEY = 'deeptune.liked.v1';
 
 interface PlayerContextValue {
   queue: Song[];
@@ -31,7 +34,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isShuffle, setIsShuffle] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
-  const [liked, setLiked] = useState<Set<string>>(new Set(['2', '4']));
+  const [liked, setLiked] = useState<Set<string>>(new Set());
+  const [likedLoaded, setLikedLoaded] = useState(false);
+
+  // Loads persisted likes once on startup. Falls back to the original sample
+  // liked songs only the very first time the app ever runs (nothing saved yet).
+  useEffect(() => {
+    AsyncStorage.getItem(LIKED_STORAGE_KEY)
+      .then((raw) => {
+        setLiked(new Set(raw ? (JSON.parse(raw) as string[]) : ['2', '4']));
+      })
+      .catch(() => {
+        setLiked(new Set(['2', '4']));
+      })
+      .finally(() => setLikedLoaded(true));
+  }, []);
+
+  useEffect(() => {
+    if (!likedLoaded) return;
+    AsyncStorage.setItem(LIKED_STORAGE_KEY, JSON.stringify(Array.from(liked))).catch(() => {});
+  }, [liked, likedLoaded]);
 
   const currentSong = queue[currentIndex] ?? null;
 

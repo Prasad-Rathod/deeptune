@@ -1,56 +1,73 @@
-import { useEffect, useState } from 'react';
-import { View, Text, TextInput, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View, Text, TextInput, ScrollView, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme';
 import { mockGenres } from '../data/genres';
-import { searchSongs } from '../services/api/songs';
-import { ApiError } from '../services/api/types';
-import type { RemoteSong } from '../services/api/types';
+import { mockSongs } from '../data/songs';
+import { usePlayer } from '../state/PlayerContext';
+import { useLocalTracksContext } from '../state/LocalTracksContext';
+import { resolveLocalTrackAsSong, toLocalSongId } from '../services/localAudio';
 import { SearchIcon } from '../components/icons';
 import HardShadowBox from '../components/HardShadowBox';
 import TrackRow from '../components/TrackRow';
 import EmptyState from '../components/EmptyState';
+import TrackActionsSheet from '../components/TrackActionsSheet';
+import type { TrackActionsSheetSong } from '../components/TrackActionsSheet';
 
-type SearchStatus = 'idle' | 'loading' | 'error' | 'success';
+type SearchNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+interface SearchResult {
+  id: string;
+  title: string;
+  subtitle: string;
+  artworkUrl?: string;
+  isLocal: boolean;
+}
 
 export default function SearchScreen() {
+  const navigation = useNavigation<SearchNavigationProp>();
   const [query, setQuery] = useState('');
-  const [status, setStatus] = useState<SearchStatus>('idle');
-  const [results, setResults] = useState<RemoteSong[]>([]);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [unavailableId, setUnavailableId] = useState<string | null>(null);
+  const [sheetSong, setSheetSong] = useState<TrackActionsSheetSong | null>(null);
   const insets = useSafeAreaInsets();
+  const { playSong } = usePlayer();
+  const { tracks: localTracks } = useLocalTracksContext();
 
-  // Debounced: waits for a pause in typing before hitting the backend,
-  // instead of firing a request on every keystroke.
-  useEffect(() => {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setStatus('idle');
-      setResults([]);
-      return;
-    }
+  const results: SearchResult[] = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
 
-    setStatus('loading');
-    setUnavailableId(null);
-    const timer = setTimeout(() => {
-      searchSongs(trimmed)
-        .then((songs) => {
-          setResults(songs);
-          setStatus('success');
-        })
-        .catch((error) => {
-          setErrorMessage(error instanceof ApiError ? error.message : 'Search failed');
-          setStatus('error');
-        });
-    }, 400);
+    const fromMock: SearchResult[] = mockSongs
+      .filter((s) => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q))
+      .map((s) => ({ id: s.id, title: s.title, subtitle: s.artist, artworkUrl: s.artworkUrl, isLocal: false }));
 
-    return () => clearTimeout(timer);
-  }, [query]);
+    const fromLocal: SearchResult[] = localTracks
+      .filter((t) => t.title.toLowerCase().includes(q))
+      .map((t) => ({ id: toLocalSongId(t.id), title: t.title, subtitle: 'On this device', isLocal: true }));
+
+    return [...fromMock, ...fromLocal];
+  }, [query, localTracks]);
 
   const hasQuery = query.trim().length > 0;
 
+  async function handleResultPress(result: SearchResult) {
+    if (result.isLocal) {
+      const track = localTracks.find((t) => toLocalSongId(t.id) === result.id);
+      if (!track) return;
+      const song = await resolveLocalTrackAsSong(track);
+      playSong(song, [song]);
+    } else {
+      const song = mockSongs.find((s) => s.id === result.id);
+      if (!song) return;
+      playSong(song, mockSongs);
+    }
+    navigation.navigate('Player');
+  }
+
   return (
+    <>
     <ScrollView
       style={styles.container}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + theme.spacing.lg }]}
@@ -88,41 +105,28 @@ export default function SearchScreen() {
         </View>
       )}
 
-      {hasQuery && status === 'loading' && (
-        <View style={styles.stateContainer}>
-          <ActivityIndicator color={theme.colors.ink} size="large" />
-        </View>
-      )}
+      {hasQuery && results.length === 0 && <EmptyState message={`No results for "${query}"`} />}
 
-      {hasQuery && status === 'error' && <EmptyState message={errorMessage} />}
-
-      {hasQuery && status === 'success' && results.length === 0 && (
-        <EmptyState message={`No results for "${query}"`} />
-      )}
-
-      {hasQuery && status === 'success' && results.length > 0 && (
+      {hasQuery && results.length > 0 && (
         <View style={styles.resultsBlock}>
           <Text style={styles.resultLabel}>
             {results.length} {results.length === 1 ? 'result' : 'results'}
           </Text>
-          {results.map((song) => (
-            <View key={song.id}>
-              <TrackRow
-                title={song.title}
-                subtitle={`Song · ${song.artist}`}
-                onPress={() => setUnavailableId((current) => (current === song.id ? null : song.id))}
-              />
-              {unavailableId === song.id && (
-                <Text style={styles.unavailableNote}>
-                  Playback isn't available for real search results yet — there's no legal audio source wired up
-                  for arbitrary tracks. Your mock/sample songs in Home and Library still play normally.
-                </Text>
-              )}
-            </View>
+          {results.map((result) => (
+            <TrackRow
+              key={result.id}
+              title={result.title}
+              subtitle={result.subtitle}
+              artworkUrl={result.artworkUrl}
+              onPress={() => handleResultPress(result)}
+              onMorePress={() => setSheetSong({ id: result.id, title: result.title })}
+            />
           ))}
         </View>
       )}
     </ScrollView>
+    <TrackActionsSheet visible={sheetSong !== null} song={sheetSong} onClose={() => setSheetSong(null)} />
+    </>
   );
 }
 
@@ -150,7 +154,6 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.display.semibold,
     fontSize: theme.typography.sizes.bodyLg,
   },
-  stateContainer: { paddingVertical: theme.spacing.xl, alignItems: 'center' },
   resultsBlock: { gap: 0 },
   resultLabel: {
     fontFamily: theme.fonts.mono.bold,
@@ -160,13 +163,6 @@ const styles = StyleSheet.create({
     color: theme.colors.inkFaint,
     paddingHorizontal: theme.spacing.page,
     marginBottom: 10,
-  },
-  unavailableNote: {
-    fontFamily: theme.fonts.mono.regular,
-    fontSize: theme.typography.sizes.meta,
-    color: theme.colors.inkFaint,
-    paddingHorizontal: theme.spacing.page,
-    paddingBottom: 12,
   },
   section: { gap: 14 },
   sectionHeaderRow: {
