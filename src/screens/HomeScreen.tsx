@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme';
 import { mockSongs, recentlyPlayed } from '../data/songs';
-import { mockPlaylists } from '../data/songs';
 import { usePlayer } from '../state/PlayerContext';
+import { usePlaylists } from '../state/PlaylistsContext';
 import HardShadowBox from '../components/HardShadowBox';
 import TrackRow from '../components/TrackRow';
 import Artwork from '../components/Artwork';
@@ -15,26 +16,25 @@ type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 function useGreeting() {
   return useMemo(() => {
-    const now = new Date();
-    const hour = now.getHours();
-    const greeting = hour < 12 ? 'Good\nmorning.' : hour < 18 ? 'Good\nafternoon.' : 'Good\nevening.';
-    const startOfYear = new Date(now.getFullYear(), 0, 0);
-    const dayOfYear = Math.floor((now.getTime() - startOfYear.getTime()) / 86400000);
-    const weekday = now.toLocaleDateString('en-US', { weekday: 'short' });
-    return { greeting, label: `No.${dayOfYear} · ${weekday}` };
+    const hour = new Date().getHours();
+    return hour < 12 ? 'Good\nmorning.' : hour < 18 ? 'Good\nafternoon.' : 'Good\nevening.';
   }, []);
 }
 
 export default function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProp>();
   const { currentSong, playSong } = usePlayer();
-  const { greeting, label } = useGreeting();
+  const { playlists } = usePlaylists();
+  const greeting = useGreeting();
+  const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + theme.spacing.lg }]}
+    >
       <View style={styles.header}>
         <View>
-          <Text style={styles.dateLabel}>{label}</Text>
           <Text style={styles.greeting}>{greeting}</Text>
         </View>
         <Pressable onPress={() => navigation.navigate('Settings')} style={styles.avatar}>
@@ -68,13 +68,17 @@ export default function HomeScreen() {
           <View style={styles.sectionRule} />
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carousel}>
-          {mockPlaylists.map((playlist) => (
+          {playlists.map((playlist) => (
             <Pressable
               key={playlist.id}
               style={styles.playlistCard}
               onPress={() => navigation.navigate('PlaylistDetails', { playlistId: playlist.id })}
             >
               <HardShadowBox contentStyle={styles.playlistCover}>
+                <Artwork
+                  uri={mockSongs.find((s) => s.id === playlist.songIds[0])?.artworkUrl}
+                  style={StyleSheet.absoluteFill}
+                />
                 <View style={styles.trackCountTag}>
                   <Text style={styles.trackCountText}>{playlist.songIds.length} TRK</Text>
                 </View>
@@ -119,26 +123,18 @@ function formatDuration(totalSeconds: number) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.paper },
-  content: { paddingTop: theme.spacing.xl, paddingBottom: 176, gap: theme.spacing.xl },
+  content: { paddingBottom: 176, gap: theme.spacing.xl },
   header: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.page,
   },
-  dateLabel: {
-    fontFamily: theme.fonts.mono.regular,
-    fontSize: theme.typography.sizes.meta,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: theme.colors.inkFaint,
-  },
   greeting: {
     fontFamily: theme.fonts.display.extrabold,
     fontSize: theme.typography.sizes.displayLg,
     color: theme.colors.ink,
     lineHeight: 36,
-    marginTop: 6,
   },
   avatar: {
     width: 44,

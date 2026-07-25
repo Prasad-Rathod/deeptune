@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TextInput, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../theme';
 import { mockGenres } from '../data/genres';
 import { searchSongs } from '../services/api/songs';
@@ -18,6 +19,7 @@ export default function SearchScreen() {
   const [results, setResults] = useState<RemoteSong[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [unavailableId, setUnavailableId] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
   // Debounced: waits for a pause in typing before hitting the backend,
   // instead of firing a request on every keystroke.
@@ -49,7 +51,10 @@ export default function SearchScreen() {
   const hasQuery = query.trim().length > 0;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + theme.spacing.lg }]}
+    >
       <View style={styles.headerBlock}>
         <Text style={styles.title}>Search</Text>
         <HardShadowBox contentStyle={styles.searchBar}>
@@ -123,7 +128,7 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.paper },
-  content: { paddingTop: theme.spacing.xl, paddingBottom: 176, gap: theme.spacing.xl },
+  content: { paddingBottom: 176, gap: theme.spacing.xl },
   headerBlock: { paddingHorizontal: theme.spacing.page },
   title: {
     fontFamily: theme.fonts.display.extrabold,

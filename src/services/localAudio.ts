@@ -45,8 +45,19 @@ export function useLocalTracks() {
       durationSec: asset.duration ? asset.duration / 1000 : 0,
     }));
 
-    setTracks(mapped);
-    setStatus(mapped.length === 0 ? 'empty' : 'success');
+    // Some devices index the same physical file twice in MediaStore (e.g. once
+    // under "Music" and once under "Download"), giving two different asset ids
+    // for identical title+duration. Keep only the first of each.
+    const seen = new Set<string>();
+    const deduped = mapped.filter((track) => {
+      const key = `${track.title}|${track.durationSec}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    setTracks(deduped);
+    setStatus(deduped.length === 0 ? 'empty' : 'success');
   }, []);
 
   useEffect(() => {

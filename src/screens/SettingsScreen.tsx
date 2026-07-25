@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../theme';
 import { API_BASE_URL } from '../services/api/config';
 import { checkHealth } from '../services/api/health';
@@ -12,6 +13,7 @@ type ConnectionStatus = 'loading' | 'success' | 'error';
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [status, setStatus] = useState<ConnectionStatus>('loading');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -30,7 +32,7 @@ export default function SettingsScreen() {
   }, [runHealthCheck]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + theme.spacing.lg }]}>
       <View style={styles.topRow}>
         <HardShadowBox offset={theme.shadow.sm} contentStyle={styles.closeButton} onPress={() => navigation.goBack()}>
           <ChevronDownIcon size={22} />
@@ -61,7 +63,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.paper, paddingTop: 54, paddingHorizontal: theme.spacing.page },
+  container: { flex: 1, backgroundColor: theme.colors.paper, paddingHorizontal: theme.spacing.page },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',

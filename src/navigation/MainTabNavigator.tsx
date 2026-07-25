@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
 import SearchScreen from '../screens/SearchScreen';
@@ -44,6 +45,8 @@ export default function MainTabNavigator() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { currentSong, isPlaying, progressSec, durationSec, togglePlay } = usePlayer();
   const progressPct = currentSong && durationSec > 0 ? Math.min(100, (progressSec / durationSec) * 100) : 0;
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = 58 + insets.bottom + 12;
 
   return (
     <View style={styles.root}>
@@ -52,7 +55,7 @@ export default function MainTabNavigator() {
           const routeName = route.name as keyof MainTabParamList;
           return {
             headerShown: false,
-            tabBarStyle: styles.tabBar,
+            tabBarStyle: [styles.tabBar, { height: tabBarHeight, paddingBottom: insets.bottom + 12 }],
             tabBarItemStyle: styles.tabItem,
             tabBarIcon: ({ focused }) => <TabIcon routeName={routeName} focused={focused} />,
             tabBarLabel: ({ focused }) => <TabLabel routeName={routeName} focused={focused} />,
@@ -65,7 +68,7 @@ export default function MainTabNavigator() {
       </Tab.Navigator>
 
       {currentSong && (
-        <View style={styles.miniPlayerOverlay}>
+        <View style={[styles.miniPlayerOverlay, { bottom: tabBarHeight }]}>
           <MiniPlayer
             title={currentSong.title}
             artist={currentSong.artist}
@@ -84,9 +87,7 @@ export default function MainTabNavigator() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   tabBar: {
-    height: 84,
     paddingTop: 12,
-    paddingBottom: 26,
     backgroundColor: theme.colors.paper,
     borderTopWidth: theme.borderWidth,
     borderTopColor: theme.colors.ink,
@@ -102,6 +103,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 10,
     right: 10,
-    bottom: 84,
   },
 });

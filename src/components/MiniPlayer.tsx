@@ -1,5 +1,6 @@
 import { Pressable, View, Text, StyleSheet } from 'react-native';
 import type { GestureResponderEvent } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { theme } from '../theme';
 import { PlayIcon, PauseIcon } from './icons';
 import HardShadowBox from './HardShadowBox';
@@ -27,15 +28,17 @@ export default function MiniPlayer({
   return (
     <HardShadowBox onPress={onPress} shadowColor="rgba(23, 23, 24, 0.35)" contentStyle={styles.content}>
       <View style={styles.row}>
-        <Artwork uri={artworkUrl} style={styles.artwork} />
-        <View style={styles.info}>
-          <Text style={styles.title} numberOfLines={1}>
-            {title}
-          </Text>
-          <Text style={styles.artist} numberOfLines={1}>
-            {artist}
-          </Text>
-        </View>
+        <Animated.View key={title} entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)} style={styles.animatedInfoRow}>
+          <Artwork uri={artworkUrl} style={styles.artwork} />
+          <View style={styles.info}>
+            <Text style={styles.title} numberOfLines={1}>
+              {title}
+            </Text>
+            <Text style={styles.artist} numberOfLines={1}>
+              {artist}
+            </Text>
+          </View>
+        </Animated.View>
         <Pressable
           onPress={(event: GestureResponderEvent) => {
             event.stopPropagation();
@@ -67,6 +70,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  animatedInfoRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,

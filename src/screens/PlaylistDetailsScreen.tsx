@@ -1,13 +1,15 @@
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme';
-import { mockSongs, mockPlaylists } from '../data/songs';
+import { mockSongs } from '../data/songs';
 import type { Song } from '../data/songs';
 import { usePlayer } from '../state/PlayerContext';
-import { ChevronLeftIcon, PlayIcon, ShuffleIcon } from '../components/icons';
+import { usePlaylists } from '../state/PlaylistsContext';
+import { ChevronLeftIcon, PlayIcon, ShuffleIcon, PlusIcon } from '../components/icons';
 import HardShadowBox from '../components/HardShadowBox';
 import TrackRow from '../components/TrackRow';
 import Artwork from '../components/Artwork';
@@ -19,10 +21,12 @@ export default function PlaylistDetailsScreen() {
   const route = useRoute<PlaylistDetailsRouteProp>();
   const navigation = useNavigation<PlaylistDetailsNavigationProp>();
   const { currentSong, liked, playSong } = usePlayer();
+  const { playlists, removeSongFromPlaylist } = usePlaylists();
   const { playlistId } = route.params;
+  const insets = useSafeAreaInsets();
 
   const isLiked = playlistId === 'liked';
-  const playlist = isLiked ? null : mockPlaylists.find((p) => p.id === playlistId);
+  const playlist = isLiked ? null : playlists.find((p) => p.id === playlistId);
 
   if (!isLiked && !playlist) return null;
 
@@ -36,68 +40,79 @@ export default function PlaylistDetailsScreen() {
   const desc = isLiked ? "Songs you've liked" : playlist!.desc;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.headerBlock}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backLink}>
-          <ChevronLeftIcon size={16} />
-          <Text style={styles.backLabel}>Library</Text>
-        </Pressable>
+    <FlatList
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      data={songs}
+      keyExtractor={(song) => song.id}
+      ListHeaderComponent={
+        <View style={[styles.headerBlock, { paddingTop: insets.top + theme.spacing.lg }]}>
+          <Pressable onPress={() => navigation.goBack()} style={styles.backLink}>
+            <ChevronLeftIcon size={16} />
+            <Text style={styles.backLabel}>Library</Text>
+          </Pressable>
 
-        <View style={styles.coverRow}>
-          <HardShadowBox offset={theme.shadow.lg} contentStyle={styles.cover}>
-            <Artwork uri={songs[0]?.artworkUrl} style={StyleSheet.absoluteFill} />
-          </HardShadowBox>
-          <View style={styles.titleBlock}>
-            <Text style={styles.kicker}>Playlist</Text>
-            <Text style={styles.name}>{name}</Text>
+          <View style={styles.coverRow}>
+            <HardShadowBox offset={theme.shadow.lg} contentStyle={styles.cover}>
+              <Artwork uri={songs[0]?.artworkUrl} style={StyleSheet.absoluteFill} />
+            </HardShadowBox>
+            <View style={styles.titleBlock}>
+              <Text style={styles.kicker}>Playlist</Text>
+              <Text style={styles.name}>{name}</Text>
+            </View>
+          </View>
+
+          <Text style={styles.desc}>
+            {desc} · {songs.length} songs
+          </Text>
+
+          <View style={styles.actionsRow}>
+            <HardShadowBox
+              style={styles.playAllWrapper}
+              contentStyle={styles.playAll}
+              onPress={() => {
+                if (songs.length === 0) return;
+                playSong(songs[0], songs);
+                navigation.navigate('Player');
+              }}
+            >
+              <PlayIcon size={18} color={theme.colors.ink} />
+              <Text style={styles.playAllLabel}>PLAY ALL</Text>
+            </HardShadowBox>
+            <HardShadowBox contentStyle={styles.iconButton}>
+              <ShuffleIcon size={22} />
+            </HardShadowBox>
+            {!isLiked && (
+              <HardShadowBox
+                contentStyle={styles.iconButton}
+                onPress={() => navigation.navigate('CreatePlaylist', { playlistId: playlist!.id })}
+              >
+                <PlusIcon size={20} />
+              </HardShadowBox>
+            )}
           </View>
         </View>
-
-        <Text style={styles.desc}>
-          {desc} · {songs.length} songs
-        </Text>
-
-        <View style={styles.actionsRow}>
-          <HardShadowBox
-            style={styles.playAllWrapper}
-            contentStyle={styles.playAll}
-            onPress={() => {
-              if (songs.length === 0) return;
-              playSong(songs[0], songs);
-              navigation.navigate('Player');
-            }}
-          >
-            <PlayIcon size={18} color={theme.colors.ink} />
-            <Text style={styles.playAllLabel}>PLAY ALL</Text>
-          </HardShadowBox>
-          <HardShadowBox contentStyle={styles.iconButton}>
-            <ShuffleIcon size={22} />
-          </HardShadowBox>
-        </View>
-      </View>
-
-      <View>
-        {songs.map((song, index) => (
-          <TrackRow
-            key={song.id}
-            position={index + 1}
-            title={song.title}
-            subtitle={song.artist}
-            artworkUrl={song.artworkUrl}
-            isActive={currentSong?.id === song.id}
-            isPlayingNow={currentSong?.id === song.id}
-            onPress={() => playSong(song, songs)}
-          />
-        ))}
-      </View>
-    </ScrollView>
+      }
+      renderItem={({ item: song, index }) => (
+        <TrackRow
+          position={index + 1}
+          title={song.title}
+          subtitle={song.artist}
+          artworkUrl={song.artworkUrl}
+          isActive={currentSong?.id === song.id}
+          isPlayingNow={currentSong?.id === song.id}
+          onPress={() => playSong(song, songs)}
+          onRemove={!isLiked ? () => removeSongFromPlaylist(playlist!.id, song.id) : undefined}
+        />
+      )}
+    />
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.paper },
   content: { paddingBottom: 176 },
-  headerBlock: { gap: 16, paddingHorizontal: theme.spacing.page, paddingTop: theme.spacing.lg, marginBottom: 6 },
+  headerBlock: { gap: 16, paddingHorizontal: theme.spacing.page, marginBottom: 6 },
   backLink: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
   backLabel: {
     fontFamily: theme.fonts.mono.bold,

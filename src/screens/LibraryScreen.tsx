@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme';
-import { mockSongs, mockPlaylists } from '../data/songs';
+import { mockSongs } from '../data/songs';
 import { mockAlbums, mockArtists } from '../data/library';
 import { usePlayer } from '../state/PlayerContext';
+import { usePlaylists } from '../state/PlaylistsContext';
 import { useLocalTracks, resolveLocalTrackUri } from '../services/localAudio';
 import type { LocalTrack } from '../services/localAudio';
+import { extractEmbeddedArtworkUri } from '../services/albumArt';
 import { PlusIcon, HeartIcon } from '../components/icons';
 import HardShadowBox from '../components/HardShadowBox';
 import TrackRow from '../components/TrackRow';
@@ -30,19 +33,50 @@ function formatDuration(totalSeconds: number) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+function OnDeviceTrackRow({ track, onPress }: { track: LocalTrack; onPress: () => void }) {
+  const [artworkUrl, setArtworkUrl] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    resolveLocalTrackUri(track.id).then((uri) => {
+      extractEmbeddedArtworkUri(uri, track.id).then((art) => {
+        if (!cancelled && art) setArtworkUrl(art);
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [track.id]);
+
+  return (
+    <TrackRow
+      title={track.title}
+      subtitle="On this device"
+      durationLabel={formatDuration(track.durationSec)}
+      artworkUrl={artworkUrl}
+      onPress={onPress}
+    />
+  );
+}
+
 function OnDeviceTab() {
   const { playSong } = usePlayer();
   const { status, tracks, retry } = useLocalTracks();
 
   async function playLocalTrack(track: LocalTrack) {
     const resolved = await Promise.all(
-      tracks.map(async (t) => ({
-        id: t.id,
-        title: t.title,
-        artist: 'On this device',
-        durationSec: t.durationSec,
-        audioUrl: await resolveLocalTrackUri(t.id),
-      }))
+      tracks.map(async (t) => {
+        const audioUrl = await resolveLocalTrackUri(t.id);
+        const artworkUrl = (await extractEmbeddedArtworkUri(audioUrl, t.id)) ?? undefined;
+        return {
+          id: t.id,
+          title: t.title,
+          artist: 'On this device',
+          durationSec: t.durationSec,
+          audioUrl,
+          artworkUrl,
+        };
+      })
     );
     const tapped = resolved.find((t) => t.id === track.id);
     if (tapped) {
@@ -78,36 +112,32 @@ function OnDeviceTab() {
   }
 
   return (
-    <>
-      {tracks.map((track) => (
-        <TrackRow
-          key={track.id}
-          title={track.title}
-          subtitle="On this device"
-          durationLabel={formatDuration(track.durationSec)}
-          onPress={() => playLocalTrack(track)}
-        />
-      ))}
-    </>
+    <FlatList
+      style={styles.list}
+      contentContainerStyle={styles.listContent}
+      data={tracks}
+      keyExtractor={(track) => track.id}
+      renderItem={({ item: track }) => <OnDeviceTrackRow track={track} onPress={() => playLocalTrack(track)} />}
+    />
   );
 }
 
 export default function LibraryScreen() {
   const navigation = useNavigation<LibraryNavigationProp>();
   const { liked } = usePlayer();
+  const { playlists } = usePlaylists();
   const [activeTab, setActiveTab] = useState<LibraryTab>('playlists');
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 400);
-    return () => clearTimeout(timer);
-  }, []);
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + theme.spacing.lg }]}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Library</Text>
-        <HardShadowBox offset={theme.shadow.sm} contentStyle={styles.addButton}>
+        <HardShadowBox
+          offset={theme.shadow.sm}
+          contentStyle={styles.addButton}
+          onPress={() => navigation.navigate('CreatePlaylist')}
+        >
           <PlusIcon size={20} color={theme.colors.ink} />
         </HardShadowBox>
       </View>
@@ -124,59 +154,66 @@ export default function LibraryScreen() {
         ))}
       </ScrollView>
 
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={theme.colors.ink} size="large" />
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.listContent}>
-          {activeTab === 'playlists' && (
-            <>
-              <Pressable
-                style={styles.likedRow}
-                onPress={() => navigation.navigate('PlaylistDetails', { playlistId: 'liked' })}
-              >
-                <View style={styles.likedArtwork}>
-                  <HeartIcon size={24} color={theme.colors.paper} filled />
-                </View>
-                <View style={styles.likedInfo}>
-                  <Text style={styles.likedTitle}>Liked Songs</Text>
-                  <Text style={styles.likedSubtitle}>Playlist · {liked.size} songs</Text>
-                </View>
-              </Pressable>
-              {mockPlaylists.map((playlist) => (
-                <TrackRow
-                  key={playlist.id}
-                  title={playlist.name}
-                  subtitle={`Playlist · ${playlist.songIds.length} songs`}
-                  artworkUrl={mockSongs.find((s) => s.id === playlist.songIds[0])?.artworkUrl}
-                  onPress={() => navigation.navigate('PlaylistDetails', { playlistId: playlist.id })}
-                />
-              ))}
-            </>
+      {activeTab === 'playlists' && (
+        <FlatList
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          data={playlists}
+          keyExtractor={(playlist) => playlist.id}
+          ListHeaderComponent={
+            <Pressable
+              style={styles.likedRow}
+              onPress={() => navigation.navigate('PlaylistDetails', { playlistId: 'liked' })}
+            >
+              <View style={styles.likedArtwork}>
+                <HeartIcon size={24} color={theme.colors.paper} filled />
+              </View>
+              <View style={styles.likedInfo}>
+                <Text style={styles.likedTitle}>Liked Songs</Text>
+                <Text style={styles.likedSubtitle}>Playlist · {liked.size} songs</Text>
+              </View>
+            </Pressable>
+          }
+          renderItem={({ item: playlist }) => (
+            <TrackRow
+              title={playlist.name}
+              subtitle={`Playlist · ${playlist.songIds.length} songs`}
+              artworkUrl={mockSongs.find((s) => s.id === playlist.songIds[0])?.artworkUrl}
+              onPress={() => navigation.navigate('PlaylistDetails', { playlistId: playlist.id })}
+            />
           )}
-
-          {activeTab === 'artists' &&
-            mockArtists.map((artist) => (
-              <TrackRow
-                key={artist.id}
-                title={artist.name}
-                subtitle={`${mockSongs.filter((s) => s.artist === artist.name).length} songs`}
-              />
-            ))}
-
-          {activeTab === 'albums' &&
-            mockAlbums.map((album) => <TrackRow key={album.id} title={album.name} subtitle={album.artist} />)}
-
-          {activeTab === 'onDevice' && <OnDeviceTab />}
-        </ScrollView>
+        />
       )}
+
+      {activeTab === 'artists' && (
+        <FlatList
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          data={mockArtists}
+          keyExtractor={(artist) => artist.id}
+          renderItem={({ item: artist }) => (
+            <TrackRow title={artist.name} subtitle={`${mockSongs.filter((s) => s.artist === artist.name).length} songs`} />
+          )}
+        />
+      )}
+
+      {activeTab === 'albums' && (
+        <FlatList
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          data={mockAlbums}
+          keyExtractor={(album) => album.id}
+          renderItem={({ item: album }) => <TrackRow title={album.name} subtitle={album.artist} />}
+        />
+      )}
+
+      {activeTab === 'onDevice' && <OnDeviceTab />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.paper, paddingTop: theme.spacing.xl },
+  container: { flex: 1, backgroundColor: theme.colors.paper },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -208,8 +245,8 @@ const styles = StyleSheet.create({
     color: theme.colors.ink,
   },
   chipLabelActive: { color: theme.colors.paper },
-  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabStateContainer: { alignItems: 'center', gap: theme.spacing.md },
+  list: { flex: 1 },
+  tabStateContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: theme.spacing.md },
   retryButton: {
     borderBottomWidth: 1.5,
     borderBottomColor: theme.colors.ink,

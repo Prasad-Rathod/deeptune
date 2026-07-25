@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, Text, Image, Pressable, Animated, Easing, Platform, ActivityIndicator, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View, Text, Image, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import type { LayoutChangeEvent, GestureResponderEvent } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { theme } from '../theme';
 import { usePlayer } from '../state/PlayerContext';
 import {
@@ -26,6 +28,7 @@ function formatDuration(totalSeconds: number) {
 
 export default function PlayerScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [artworkSize, setArtworkSize] = useState(0);
 
   function handleArtworkWrapperLayout(event: LayoutChangeEvent) {
@@ -64,22 +67,6 @@ export default function PlayerScreen() {
     seekTo(fraction * durationSec);
   }
 
-  const spin = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!isPlaying) return;
-    const loop = Animated.loop(
-      Animated.timing(spin, {
-        toValue: 1,
-        duration: 3200,
-        easing: Easing.linear,
-        useNativeDriver: Platform.OS !== 'web',
-      })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [isPlaying, spin]);
-
   if (!currentSong) {
     return (
       <View style={styles.emptyContainer}>
@@ -91,16 +78,11 @@ export default function PlayerScreen() {
     );
   }
 
-  const vinylSize = artworkSize * 0.22;
-  const vinylInset = artworkSize * 0.045;
-  const vinylHoleSize = vinylSize * 0.2;
-
   const isLiked = liked.has(currentSong.id);
   const progressPct = durationSec > 0 ? Math.min(100, (progressSec / durationSec) * 100) : 0;
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + theme.spacing.lg }]}>
       <View style={styles.topRow}>
         <HardShadowBox offset={theme.shadow.sm} contentStyle={styles.topButton} onPress={() => navigation.goBack()}>
           <ChevronDownIcon size={22} />
@@ -121,37 +103,32 @@ export default function PlayerScreen() {
             style={{ width: artworkSize, height: artworkSize }}
             contentStyle={[styles.artwork, { width: artworkSize, height: artworkSize }]}
           >
-            {currentSong.artworkUrl && (
-              <Image source={{ uri: currentSong.artworkUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-            )}
-            {isPlaying && (
-              <Animated.View
-                style={[
-                  styles.vinyl,
-                  {
-                    width: vinylSize,
-                    height: vinylSize,
-                    borderRadius: vinylSize / 2,
-                    left: artworkSize - vinylInset - vinylSize,
-                    top: artworkSize - vinylInset - vinylSize,
-                    transform: [{ rotate }],
-                  },
-                ]}
-              >
-                <View style={[styles.vinylHole, { width: vinylHoleSize, height: vinylHoleSize, borderRadius: vinylHoleSize / 2 }]} />
-              </Animated.View>
-            )}
+            <Animated.View
+              key={currentSong.id}
+              entering={FadeIn.duration(220)}
+              exiting={FadeOut.duration(150)}
+              style={StyleSheet.absoluteFill}
+            >
+              {currentSong.artworkUrl && (
+                <Image source={{ uri: currentSong.artworkUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              )}
+            </Animated.View>
           </HardShadowBox>
         )}
       </View>
 
       <View style={styles.titleRow}>
-        <View style={styles.titleBlock}>
+        <Animated.View
+          key={currentSong.id}
+          entering={FadeIn.duration(220)}
+          exiting={FadeOut.duration(150)}
+          style={styles.titleBlock}
+        >
           <Text style={styles.title} numberOfLines={1}>
             {currentSong.title}
           </Text>
           <Text style={styles.artist}>{currentSong.artist}</Text>
-        </View>
+        </Animated.View>
         <HardShadowBox
           offset={theme.shadow.sm}
           contentStyle={[styles.likeButton, isLiked && styles.likeButtonActive]}
@@ -213,7 +190,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.paper,
     paddingHorizontal: theme.spacing.page,
-    paddingTop: 54,
     paddingBottom: 40,
   },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, backgroundColor: theme.colors.paper },
@@ -247,17 +223,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.paperLight,
     position: 'relative',
     overflow: 'hidden',
-  },
-  vinyl: {
-    position: 'absolute',
-    backgroundColor: theme.colors.ink,
-    borderWidth: theme.borderWidth,
-    borderColor: theme.colors.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vinylHole: {
-    backgroundColor: theme.colors.paper,
   },
   titleRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginBottom: 22 },
   titleBlock: { flexShrink: 1, minWidth: 0 },
