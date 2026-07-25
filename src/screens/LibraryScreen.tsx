@@ -149,6 +149,7 @@ export default function LibraryScreen() {
                   key={playlist.id}
                   title={playlist.name}
                   subtitle={`Playlist · ${playlist.songIds.length} songs`}
+                  artworkUrl={mockSongs.find((s) => s.id === playlist.songIds[0])?.artworkUrl}
                   onPress={() => navigation.navigate('PlaylistDetails', { playlistId: playlist.id })}
                 />
               ))}

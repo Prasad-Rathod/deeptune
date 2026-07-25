@@ -6,6 +6,10 @@ export interface Song {
   // Royalty-free sample tracks standing in for real audio until Phase 6's
   // backend can legitimately source playable streams for searched songs.
   audioUrl: string;
+  // Placeholder cover art (stable per-song via a fixed seed) standing in for
+  // real album art until Phase 6's backend can source real metadata. Optional
+  // because on-device tracks (see localAudio.ts) have no artwork available.
+  artworkUrl?: string;
 }
 
 export const mockSongs: Song[] = [
@@ -15,6 +19,7 @@ export const mockSongs: Song[] = [
     artist: 'Aurora Bay',
     durationSec: 214,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    artworkUrl: 'https://picsum.photos/seed/deeptune-1/300/300',
   },
   {
     id: '2',
@@ -22,6 +27,7 @@ export const mockSongs: Song[] = [
     artist: 'Milo Vance',
     durationSec: 187,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    artworkUrl: 'https://picsum.photos/seed/deeptune-2/300/300',
   },
   {
     id: '3',
@@ -29,6 +35,7 @@ export const mockSongs: Song[] = [
     artist: 'Fen & Rowe',
     durationSec: 251,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    artworkUrl: 'https://picsum.photos/seed/deeptune-3/300/300',
   },
   {
     id: '4',
@@ -36,6 +43,7 @@ export const mockSongs: Song[] = [
     artist: 'Aurora Bay',
     durationSec: 198,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
+    artworkUrl: 'https://picsum.photos/seed/deeptune-4/300/300',
   },
   {
     id: '5',
@@ -43,6 +51,7 @@ export const mockSongs: Song[] = [
     artist: 'Deja Cruz',
     durationSec: 233,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
+    artworkUrl: 'https://picsum.photos/seed/deeptune-5/300/300',
   },
   {
     id: '6',
@@ -50,6 +59,7 @@ export const mockSongs: Song[] = [
     artist: 'Milo Vance',
     durationSec: 176,
     audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
+    artworkUrl: 'https://picsum.photos/seed/deeptune-6/300/300',
   },
 ];
 

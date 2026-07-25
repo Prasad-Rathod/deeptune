@@ -9,6 +9,7 @@ import { mockPlaylists } from '../data/songs';
 import { usePlayer } from '../state/PlayerContext';
 import HardShadowBox from '../components/HardShadowBox';
 import TrackRow from '../components/TrackRow';
+import Artwork from '../components/Artwork';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -53,7 +54,7 @@ export default function HomeScreen() {
               navigation.navigate('Player');
             }}
           >
-            <View style={styles.quickArtwork} />
+            <Artwork uri={song.artworkUrl} style={styles.quickArtwork} />
             <Text style={styles.quickTitle} numberOfLines={1}>
               {song.title}
             </Text>
@@ -100,6 +101,7 @@ export default function HomeScreen() {
             title={song.title}
             subtitle={song.artist}
             durationLabel={formatDuration(song.durationSec)}
+            artworkUrl={song.artworkUrl}
             isPlayingNow={currentSong?.id === song.id}
             onPress={() => playSong(song, recentlyPlayed)}
           />

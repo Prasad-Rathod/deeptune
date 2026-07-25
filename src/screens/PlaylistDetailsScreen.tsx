@@ -10,6 +10,7 @@ import { usePlayer } from '../state/PlayerContext';
 import { ChevronLeftIcon, PlayIcon, ShuffleIcon } from '../components/icons';
 import HardShadowBox from '../components/HardShadowBox';
 import TrackRow from '../components/TrackRow';
+import Artwork from '../components/Artwork';
 
 type PlaylistDetailsRouteProp = RouteProp<RootStackParamList, 'PlaylistDetails'>;
 type PlaylistDetailsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -44,7 +45,7 @@ export default function PlaylistDetailsScreen() {
 
         <View style={styles.coverRow}>
           <HardShadowBox offset={theme.shadow.lg} contentStyle={styles.cover}>
-            <View />
+            <Artwork uri={songs[0]?.artworkUrl} style={StyleSheet.absoluteFill} />
           </HardShadowBox>
           <View style={styles.titleBlock}>
             <Text style={styles.kicker}>Playlist</Text>
@@ -82,6 +83,7 @@ export default function PlaylistDetailsScreen() {
             position={index + 1}
             title={song.title}
             subtitle={song.artist}
+            artworkUrl={song.artworkUrl}
             isActive={currentSong?.id === song.id}
             isPlayingNow={currentSong?.id === song.id}
             onPress={() => playSong(song, songs)}

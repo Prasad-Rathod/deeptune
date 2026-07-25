@@ -1,5 +1,6 @@
 import { Pressable, View, Text, StyleSheet } from 'react-native';
 import { theme } from '../theme';
+import Artwork from './Artwork';
 
 interface TrackRowProps {
   title: string;
@@ -8,6 +9,7 @@ interface TrackRowProps {
   position?: number;
   isActive?: boolean;
   isPlayingNow?: boolean;
+  artworkUrl?: string;
   onPress?: () => void;
 }
 
@@ -18,6 +20,7 @@ export default function TrackRow({
   position,
   isActive,
   isPlayingNow,
+  artworkUrl,
   onPress,
 }: TrackRowProps) {
   return (
@@ -25,7 +28,7 @@ export default function TrackRow({
       {position !== undefined && (
         <Text style={[styles.position, isActive && styles.positionActive]}>{position}</Text>
       )}
-      <View style={styles.artwork}>
+      <Artwork uri={artworkUrl} style={styles.artwork}>
         {isPlayingNow && (
           <View style={styles.eqOverlay}>
             <View style={styles.eqBar} />
@@ -33,7 +36,7 @@ export default function TrackRow({
             <View style={styles.eqBar} />
           </View>
         )}
-      </View>
+      </Artwork>
       <View style={styles.info}>
         <Text style={[styles.title, isActive && styles.titleActive]} numberOfLines={1}>
           {title}

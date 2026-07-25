@@ -3,12 +3,14 @@ import type { GestureResponderEvent } from 'react-native';
 import { theme } from '../theme';
 import { PlayIcon, PauseIcon } from './icons';
 import HardShadowBox from './HardShadowBox';
+import Artwork from './Artwork';
 
 interface MiniPlayerProps {
   title: string;
   artist: string;
   isPlaying: boolean;
   progressPct: number;
+  artworkUrl?: string;
   onTogglePlay: () => void;
   onPress: () => void;
 }
@@ -18,13 +20,14 @@ export default function MiniPlayer({
   artist,
   isPlaying,
   progressPct,
+  artworkUrl,
   onTogglePlay,
   onPress,
 }: MiniPlayerProps) {
   return (
     <HardShadowBox onPress={onPress} shadowColor="rgba(23, 23, 24, 0.35)" contentStyle={styles.content}>
       <View style={styles.row}>
-        <View style={styles.artwork} />
+        <Artwork uri={artworkUrl} style={styles.artwork} />
         <View style={styles.info}>
           <Text style={styles.title} numberOfLines={1}>
             {title}

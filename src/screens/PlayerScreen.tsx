@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, Easing, Platform, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Image, Pressable, Animated, Easing, Platform, ActivityIndicator, StyleSheet } from 'react-native';
 import type { LayoutChangeEvent, GestureResponderEvent } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../theme';
@@ -121,6 +121,9 @@ export default function PlayerScreen() {
             style={{ width: artworkSize, height: artworkSize }}
             contentStyle={[styles.artwork, { width: artworkSize, height: artworkSize }]}
           >
+            {currentSong.artworkUrl && (
+              <Image source={{ uri: currentSong.artworkUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            )}
             {isPlaying && (
               <Animated.View
                 style={[

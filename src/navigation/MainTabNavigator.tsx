@@ -69,6 +69,7 @@ export default function MainTabNavigator() {
           <MiniPlayer
             title={currentSong.title}
             artist={currentSong.artist}
+            artworkUrl={currentSong.artworkUrl}
             isPlaying={isPlaying}
             progressPct={progressPct}
             onTogglePlay={togglePlay}
