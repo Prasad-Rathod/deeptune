@@ -4,17 +4,15 @@
     "slug": "deep-tune",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/deeptune-mark-512.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#171718",
+        "foregroundImage": "./assets/deeptune-mark-512.png"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
@@ -48,6 +46,12 @@
           "granularPermissions": [
             "audio"
           ]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#f1f0ea"
         }
       ]
     ]
