@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
-    paddingVertical: 10,
+    paddingVertical: 4,
     paddingHorizontal: theme.spacing.page,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.inkBorderFaint,
