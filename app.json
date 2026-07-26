@@ -4,7 +4,7 @@
     "slug": "deep-tune",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/deeptune-mark-512.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
@@ -12,7 +12,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#171718",
-        "foregroundImage": "./assets/deeptune-mark-512.png"
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [

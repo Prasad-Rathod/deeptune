@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,10 +39,12 @@ function OnDeviceTrackRow({
   track,
   onPress,
   onMorePress,
+  isLoading,
 }: {
   track: LocalTrack;
   onPress: () => void;
   onMorePress: () => void;
+  isLoading?: boolean;
 }) {
   const [artworkUrl, setArtworkUrl] = useState<string | undefined>(undefined);
 
@@ -66,6 +68,7 @@ function OnDeviceTrackRow({
       artworkUrl={artworkUrl}
       onPress={onPress}
       onMorePress={onMorePress}
+      isLoading={isLoading}
     />
   );
 }
@@ -74,12 +77,33 @@ function OnDeviceTab() {
   const { playSong } = usePlayer();
   const { status, tracks, retry } = useLocalTracksContext();
   const [sheetTrack, setSheetTrack] = useState<LocalTrack | null>(null);
+  const [loadingTrackId, setLoadingTrackId] = useState<string | null>(null);
+  const playRequestId = useRef(0);
 
   async function playLocalTrack(track: LocalTrack) {
-    const resolved = await Promise.all(tracks.map(resolveLocalTrackAsSong));
-    const tapped = resolved.find((t) => t.id === toLocalSongId(track.id));
-    if (tapped) {
-      playSong(tapped, resolved);
+    // Resolve and play the tapped track immediately instead of re-resolving
+    // every on-device track first — that made tapping any single song block
+    // on a native URI lookup + artwork read for the whole library.
+    const requestId = ++playRequestId.current;
+    setLoadingTrackId(track.id);
+    try {
+      const song = await resolveLocalTrackAsSong(track);
+      if (playRequestId.current !== requestId) return;
+      playSong(song, [song]);
+      setLoadingTrackId(null);
+
+      // Fill in the rest of the queue (for next/previous) in the background
+      // without delaying playback of the tapped track.
+      const others = await Promise.all(
+        tracks.filter((t) => t.id !== track.id).map(resolveLocalTrackAsSong)
+      );
+      if (playRequestId.current !== requestId) return;
+      const fullQueue = tracks.map((t) =>
+        t.id === track.id ? song : others.find((o) => o.id === toLocalSongId(t.id))!
+      );
+      playSong(song, fullQueue);
+    } finally {
+      if (playRequestId.current === requestId) setLoadingTrackId(null);
     }
   }
 
@@ -122,6 +146,7 @@ function OnDeviceTab() {
             track={track}
             onPress={() => playLocalTrack(track)}
             onMorePress={() => setSheetTrack(track)}
+            isLoading={loadingTrackId === track.id}
           />
         )}
       />
@@ -154,7 +179,12 @@ export default function LibraryScreen() {
         </HardShadowBox>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipsScroll}
+        contentContainerStyle={styles.chipsRow}
+      >
         {TABS.map((tab) => (
           <Pressable
             key={tab.key}
@@ -241,7 +271,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipsRow: { gap: 9, paddingHorizontal: theme.spacing.page, paddingBottom: theme.spacing.lg },
+  chipsScroll: { flexGrow: 0 },
+  chipsRow: { gap: 9, alignItems: 'flex-start', paddingHorizontal: theme.spacing.page, paddingBottom: theme.spacing.lg },
   chip: {
     paddingHorizontal: 15,
     paddingVertical: 7,
@@ -274,14 +305,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
-    paddingVertical: 10,
+    paddingVertical: 4,
     paddingHorizontal: theme.spacing.page,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.inkBorderFaint,
   },
   likedArtwork: {
-    width: 54,
-    height: 54,
+    width: 48,
+    height: 48,
     borderWidth: theme.borderWidth,
     borderColor: theme.colors.ink,
     backgroundColor: theme.colors.ink,

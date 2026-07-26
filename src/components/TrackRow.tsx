@@ -1,4 +1,4 @@
-import { Pressable, View, Text, StyleSheet } from 'react-native';
+import { ActivityIndicator, Pressable, View, Text, StyleSheet } from 'react-native';
 import { theme } from '../theme';
 import Artwork from './Artwork';
 import { MoreDotsIcon } from './icons';
@@ -10,6 +10,7 @@ interface TrackRowProps {
   position?: number;
   isActive?: boolean;
   isPlayingNow?: boolean;
+  isLoading?: boolean;
   artworkUrl?: string;
   onPress?: () => void;
   onMorePress?: () => void;
@@ -22,6 +23,7 @@ export default function TrackRow({
   position,
   isActive,
   isPlayingNow,
+  isLoading,
   artworkUrl,
   onPress,
   onMorePress,
@@ -32,12 +34,18 @@ export default function TrackRow({
         <Text style={[styles.position, isActive && styles.positionActive]}>{position}</Text>
       )}
       <Artwork uri={artworkUrl} style={styles.artwork}>
-        {isPlayingNow && (
+        {isLoading ? (
           <View style={styles.eqOverlay}>
-            <View style={styles.eqBar} />
-            <View style={[styles.eqBar, styles.eqBarTall]} />
-            <View style={styles.eqBar} />
+            <ActivityIndicator color={theme.colors.paper} size="small" />
           </View>
+        ) : (
+          isPlayingNow && (
+            <View style={styles.eqOverlay}>
+              <View style={styles.eqBar} />
+              <View style={[styles.eqBar, styles.eqBarTall]} />
+              <View style={styles.eqBar} />
+            </View>
+          )
         )}
       </Artwork>
       <View style={styles.info}>
